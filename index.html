@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Regresión Lineal Simple — Calculadora</title>
+
+  <!-- Chart.js (gráfico) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <!-- MathJax (fórmulas) -->
+  <script>
+    window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;         /* slate-900 */
+      --panel: #111827;      /* gray-900 */
+      --muted: #cbd5e1;      /* slate-300 */
+      --text: #e5e7eb;       /* gray-200 */
+      --accent: #22c55e;     /* green-500 */
+      --warn: #f59e0b;       /* amber-500 */
+      --danger: #ef4444;     /* red-500 */
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 1.25rem;
+      background: radial-gradient(1200px 600px at 80% -20%, #1e293b 0%, #0b1221 40%, var(--bg) 100%);
+      color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    header, main, footer {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    header h1 { margin: 0 0 .25rem 0; font-size: clamp(1.4rem, 1rem + 2vw, 2rem); }
+    header p { margin: 0 0 1rem 0; color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 1000px) {
+      .grid { grid-template-columns: 420px 1fr; }
+    }
+    .card {
+      background: linear-gradient(180deg, #0c1220, #0a0f1a);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: var(--radius);
+      padding: 1rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    label { display:block; font-weight:600; margin-bottom:.5rem; }
+    textarea, input, select {
+      width: 100%;
+      background: #0b1324;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px;
+      padding: .75rem .85rem;
+      font-family: var(--mono);
+      resize: vertical;
+    }
+    textarea { min-height: 160px; }
+    .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+    .row > * { flex: 1 1 auto; }
+    button {
+      appearance: none; border: 0; cursor: pointer;
+      padding: .75rem 1rem; border-radius: 10px;
+      font-weight: 700;
+      background: linear-gradient(180deg, #27cf69, #16a34a);
+      color: #04130a;
+      box-shadow: 0 8px 20px rgba(34,197,94,.35), inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    button.secondary {
+      background: linear-gradient(180deg, #334155, #1f2937);
+      color: var(--text);
+      box-shadow: 0 8px 20px rgba(2,6,23,.4), inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .muted { color: var(--muted); font-size: .95rem; }
+    .warn { color: var(--warn); }
+    .danger { color: var(--danger); }
+    .results table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02);
+    }
+    .results th, .results td {
+      padding: .6rem .7rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,.06);
+      font-family: var(--mono);
+    }
+    .results th { background: rgba(255,255,255,.04); font-weight: 700; }
+    code {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: .1rem .35rem; border-radius: 6px; font-family: var(--mono);
+    }
+    .kpi {
+      display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:.75rem; margin-top:.75rem;
+    }
+    @media (min-width: 700px) { .kpi { grid-template-columns: repeat(4,minmax(0,1fr)); } }
+    .kpi .tile {
+      background: rgba(34,197,94,.08);
+      border: 1px solid rgba(34,197,94,.25);
+      border-radius: 10px; padding:.75rem;
+    }
+    .tile h3 { margin:.1rem 0; font-size:clamp(1.1rem, .9rem + 1vw, 1.35rem); }
+    .tile p { margin:0; color:var(--muted); font-family: var(--mono); }
+    footer { margin-top: 1.25rem; color: var(--muted); font-size: .9rem; }
+    details summary { cursor: pointer; user-select: none; }
+    .small { font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Regresión Lineal Simple</h1>
+    <p class="muted">Pegá tus pares de coordenadas, calculá $\\hat y = b_0 + b_1 x$, $r$, $R^2$ y el desvío estándar de los errores. Visualización incluida.</p>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <label for="points">Pares (x, y)</label>
+      <textarea id="points" spellcheck="false" placeholder="Formatos válidos:
+1, 2
+2 3
+3;4
+4	5
+También podés separar pares con ; en una sola línea: 1,2; 2,3; 3,5; 4,4; 5,6
+Decimales: . o , (por ejemplo 2.5 o 2,5)"></textarea>
+
+      <div class="row" style="margin-top:.75rem">
+        <button id="btn-calc">Calcular</button>
+        <button id="btn-sample" class="secondary" type="button">Cargar ejemplo</button>
+        <button id="btn-clear" class="secondary" type="button">Limpiar</button>
+      </div>
+
+      <p id="parseMsg" class="muted" style="margin-top:.5rem"></p>
+
+      <details style="margin-top:.75rem">
+        <summary><strong>Instrucciones de entrada</strong></summary>
+        <ul class="small">
+          <li>Un par por línea <code>x, y</code> o <code>x y</code>; también funciona <code>x;y</code>.</li>
+          <li>Separadores de pares: salto de línea o <code>;</code> en una misma línea.</li>
+          <li>Decimales con <code>.</code> o <code>,</code> (se detectan automáticamente).</li>
+          <li>Se ordena por <em>x</em> ascendente antes de graficar.</li>
+        </ul>
+      </details>
+    </section>
+
+    <section class="card">
+      <div style="position: relative; height: 400px;">
+        <canvas id="chart"></canvas>
+      </div>
+      <p class="muted small" style="margin-top:.25rem">El gráfico muestra los puntos originales y la recta de mejor ajuste por mínimos cuadrados.</p>
+    </section>
+
+    <section class="card results" style="grid-column: 1 / -1">
+      <h2 style="margin-top:0">Resultados</h2>
+      <div class="kpi">
+        <div class="tile"><h3 id="eq">—</h3><p>Ecuación recta $\\hat y = b_0 + b_1 x$</p></div>
+        <div class="tile"><h3 id="r">—</h3><p>Coef. de correlación $r$</p></div>
+        <div class="tile"><h3 id="r2">—</h3><p>Coef. de determinación $R^2$</p></div>
+        <div class="tile"><h3 id="se">—</h3><p>Desvío estándar de errores $s_e$</p></div>
+      </div>
+
+      <table style="margin-top:1rem">
+        <thead><tr><th>Estadístico</th><th>Valor</th></tr></thead>
+        <tbody id="statsBody">
+          <!-- Se completa por JS -->
+        </tbody>
+      </table>
+
+      <details style="margin-top:1rem">
+        <summary><strong>Fórmulas (transparencia)</strong></summary>
+        <div class="small">
+          <p>Con $n$ pares $(x_i, y_i)$:</p>
+          <p>$\\bar x = \\dfrac{1}{n}\\sum x_i$, &nbsp; $\\bar y = \\dfrac{1}{n}\\sum y_i$</p>
+          <p>$S_{xx} = \\sum (x_i-\\bar x)^2$, &nbsp; $S_{yy} = \\sum (y_i-\\bar y)^2$, &nbsp; $S_{xy} = \\sum (x_i-\\bar x)(y_i-\\bar y)$</p>
+          <p><strong>Pendiente</strong> $b_1 = \\dfrac{S_{xy}}{S_{xx}}$; &nbsp; <strong>Ordenada</strong> $b_0 = \\bar y - b_1\\,\\bar x$</p>
+          <p><strong>Correlación</strong> $r = \\dfrac{S_{xy}}{\\sqrt{S_{xx} S_{yy}}}$, &nbsp; <strong>Determinación</strong> $R^2 = r^2$</p>
+          <p><strong>Residuos</strong> $e_i = y_i - \\hat y_i$; &nbsp; <strong>SSE</strong> $= \\sum e_i^2$; &nbsp; <strong>Desvío estándar de errores</strong> $s_e = \\sqrt{\\dfrac{\\text{SSE}}{n-2}}$</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <details>
+      <summary><strong>Testing rápido</strong></summary>
+      <div class="small">
+        Pegá: <code>1,2; 2,3; 3,5; 4,4; 5,6</code> y presioná <em>Calcular</em>.
+      </div>
+    </details>
+    <p class="muted">Hecho para usar offline/online y publicar en GitHub Pages.</p>
+  </footer>
+
+  <script>
+    // ---------- Utilidades ----------
+    const fmt = (x, k=6) => Number.isFinite(x) ? Number(x).toFixed(k).replace(/\.?0+$/,'') : '—';
+
+    // Parser tolerante: soporta \n o ';' entre pares, y coma o espacio entre x e y.
+    // Decimales: '.' o ',' (se normaliza a '.').
+    function parsePoints(raw) {
+      const lines = raw
+        .split(/[\n;]+/).map(s => s.trim()).filter(Boolean);
+      const points = [];
+      let bad = 0;
+
+      for (const line of lines) {
+        // separar por coma, tab o espacios múltiples
+        let tokens = line.split(/[,\s]+/).filter(Boolean);
+
+        if (tokens.length < 2) { bad++; continue; }
+        // tomar primeros dos números
+        let [tx, ty] = tokens;
+
+        // Normalizar decimales: si tiene coma y no punto -> cambiar coma por punto
+        const norm = t => (t.includes(',') && !t.includes('.')) ? t.replace(',', '.') : t;
+
+        const x = parseFloat(norm(tx));
+        const y = parseFloat(norm(ty));
+
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          points.push({ x, y });
+        } else {
+          bad++;
+        }
+      }
+
+      // Ordenar por x ascendente (requerido)
+      points.sort((a,b) => a.x - b.x);
+      return { points, bad };
+    }
+
+    function statsLR(data) {
+      const n = data.length;
+      if (n < 2) throw new Error("Se necesitan al menos 2 pares (x,y).");
+
+      // medias
+      const sumx = data.reduce((s,p)=>s+p.x,0);
+      const sumy = data.reduce((s,p)=>s+p.y,0);
+      const xbar = sumx / n, ybar = sumy / n;
+
+      // sumas de cuadrados y productos
+      let Sxx=0, Syy=0, Sxy=0;
+      for (const {x,y} of data) {
+        const dx = x - xbar;
+        const dy = y - ybar;
+        Sxx += dx*dx;
+        Syy += dy*dy;
+        Sxy += dx*dy;
+      }
+      if (Sxx === 0) throw new Error("Todos los x son iguales; la recta no está definida (var(x)=0).");
+
+      const b1 = Sxy / Sxx;
+      const b0 = ybar - b1 * xbar;
+
+      // predicciones y residuos
+      const yhat = data.map(p => b0 + b1*p.x);
+      const resid = data.map((p,i) => p.y - yhat[i]);
+      const SSE = resid.reduce((s,e)=>s+e*e,0);
+      const r = (Sxx>0 && Syy>0) ? (Sxy / Math.sqrt(Sxx*Syy)) : NaN;
+      const R2 = r*r;
+      const se = Math.sqrt(SSE / (n - 2));
+
+      // Línea para graficar a lo largo del rango observado
+      const xs = data.map(p=>p.x);
+      const xmin = Math.min(...xs), xmax = Math.max(...xs);
+      const line = [
+        { x: xmin, y: b0 + b1*xmin },
+        { x: xmax, y: b0 + b1*xmax }
+      ];
+
+      return { n, xbar, ybar, Sxx, Syy, Sxy, b0, b1, r, R2, SSE, se, yhat, resid, line };
+    }
+
+    // ---------- UI y gráfico ----------
+    const $points = document.getElementById('points');
+    const $parseMsg = document.getElementById('parseMsg');
+    const $eq = document.getElementById('eq');
+    const $r = document.getElementById('r');
+    const $r2 = document.getElementById('r2');
+    const $se = document.getElementById('se');
+    const $statsBody = document.getElementById('statsBody');
+
+    // Dataset de ejemplo sencillo
+    const SAMPLE = "1,2; 2,3; 3,5; 4,4; 5,6";
+
+    document.getElementById('btn-sample').addEventListener('click', ()=>{
+      $points.value = SAMPLE;
+      $parseMsg.textContent = "Ejemplo cargado. Presioná Calcular.";
+      $parseMsg.className = "muted";
+    });
+    document.getElementById('btn-clear').addEventListener('click', ()=>{
+      $points.value = ""; $parseMsg.textContent = "";
+      resetResults();
+      chart.data.datasets[0].data = [];
+      chart.data.datasets[1].data = [];
+      chart.update();
+    });
+
+    let chart = new Chart(document.getElementById('chart'), {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Datos',
+            data: [],
+            pointRadius: 4,
+            pointHoverRadius: 6
+          },
+          {
+            label: 'Recta de ajuste',
+            type: 'line',
+            data: [],
+            tension: 0,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'x' }, grid: { color: 'rgba(148,163,184,.15)'} },
+          y: { title: { display: true, text: 'y' }, grid: { color: 'rgba(148,163,184,.15)'} }
+        },
+        plugins: {
+          legend: { labels: { color: '#e5e7eb' } },
+          tooltip: { mode: 'nearest', intersect: false }
+        }
+      }
+    });
+
+    function resetResults() {
+      $eq.textContent = '—';
+      $r.textContent = '—';
+      $r2.textContent = '—';
+      $se.textContent = '—';
+      $statsBody.innerHTML = '';
+    }
+
+    function fillTable(res) {
+      const rows = [
+        ['n (pares)', res.n],
+        ['x̄', fmt(res.xbar, 6)],
+        ['ȳ', fmt(res.ybar, 6)],
+        ['Sxx', fmt(res.Sxx, 6)],
+        ['Syy', fmt(res.Syy, 6)],
+        ['Sxy', fmt(res.Sxy, 6)],
+        ['b₁ (pendiente)', fmt(res.b1, 6)],
+        ['b₀ (ordenada)', fmt(res.b0, 6)],
+        ['r', fmt(res.r, 6)],
+        ['R²', fmt(res.R2, 6)],
+        ['SSE', fmt(res.SSE, 6)],
+        ['sₑ', fmt(res.se, 6)]
+      ];
+      $statsBody.innerHTML = rows.map(([k,v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+    }
+
+    document.getElementById('btn-calc').addEventListener('click', () => {
+      resetResults();
+      const { points, bad } = parsePoints($points.value);
+
+      if (bad > 0) {
+        $parseMsg.textContent = `Se ignoraron ${bad} línea(s) inválida(s).`;
+        $parseMsg.className = "muted warn";
+      } else {
+        $parseMsg.textContent = "";
+      }
+
+      if (points.length < 2) {
+        $parseMsg.textContent = "Necesitás al menos 2 pares válidos.";
+        $parseMsg.className = "muted danger";
+        return;
+      }
+
+      let res;
+      try {
+        res = statsLR(points);
+      } catch (e) {
+        $parseMsg.textContent = e.message;
+        $parseMsg.className = "muted danger";
+        return;
+      }
+
+      // Actualizar KPIs
+      $eq.textContent = `ŷ = ${fmt(res.b0,6)} + ${fmt(res.b1,6)}·x`;
+      $r.textContent = fmt(res.r, 6);
+      $r2.textContent = fmt(res.R2, 6);
+      $se.textContent = fmt(res.se, 6);
+
+      // Tabla
+      fillTable(res);
+
+      // Gráfico
+      chart.data.datasets[0].data = points;
+      chart.data.datasets[1].data = res.line;
+      chart.update();
+
+      // Re-render de MathJax por si las dudas
+      if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise();
+    });
+  </script>
+</body>
+</html>
